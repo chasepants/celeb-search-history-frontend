@@ -1,0 +1,37 @@
+.landing-page {
+    text-align: center;
+    padding: 40px;
+  }
+  
+  .landing-content {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .landing-title {
+    font-size: 48px;
+    color: #1976d2;
+    margin-bottom: 20px;
+    font-weight: 500;
+  }
+  
+  .landing-subtitle {
+    font-size: 20px;
+    color: #666;
+    margin-bottom: 30px;
+  }
+  
+  .search-now-btn {
+    display: inline-block;
+    padding: 12px 24px;
+    font-size: 16px;
+    background-color: #1976d2;
+    color: white;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+  }
+  
+  .search-now-btn:hover {
+    background-color: #1565c0;
+  }
