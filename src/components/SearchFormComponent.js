@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
+import validator from "validator";
 import BioCard from "./BioCard";
 import SearchResults from "./SearchResults";
 import { fetchSearchHistory, fetchBioData } from "../utils/api";
-import { isValidName } from "../utils/validation";
 import "../SearchForm.css";
 
 function SearchFormComponent() {
@@ -21,13 +21,20 @@ function SearchFormComponent() {
   useEffect(() => {
     if (isCaptchaVerified || process.env.NODE_ENV === "development") return;
 
+    const sitekey = process.env.REACT_APP_TURNSTILE_SITE_KEY;
+    if (!sitekey || typeof sitekey !== "string") {
+      console.error("Invalid or missing Turnstile sitekey:", sitekey);
+      setError("Search database is down");
+      return;
+    }
+
     const script = document.createElement("script");
     script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
     script.async = true;
     script.onload = () => {
       if (window.turnstile && captchaRef.current) {
         window.turnstile.render(captchaRef.current, {
-          sitekey: process.env.REACT_APP_TURNSTILE_SITE_KEY,
+          sitekey: sitekey,
           callback: (token) => {
             setCaptchaToken(token);
             setIsCaptchaVerified(true);
@@ -39,6 +46,7 @@ function SearchFormComponent() {
         });
       }
     };
+    script.onerror = () => setError("Search database is down");
     document.body.appendChild(script);
 
     return () => {
@@ -49,6 +57,18 @@ function SearchFormComponent() {
     };
   }, [isCaptchaVerified]);
 
+  const isValidCelebrityName = (input) => {
+    const trimmedInput = input.trim();
+    const parts = trimmedInput.split(/\s+/);
+    
+    const allowlist = ["Snoop Dogg", "Jelly Roll", "Prince", "Madonna"];
+    if (allowlist.includes(trimmedInput)) return true;
+
+    if (parts.length < 1 || parts.length > 2) return false;
+
+    return parts.every(part => validator.isAlpha(part));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -57,19 +77,17 @@ function SearchFormComponent() {
     setBio(null);
 
     const trimmedInput = input.trim();
-    if (!isValidName(trimmedInput)) {
-      setError("Please enter a valid celebrity name (letters only, no suspicious text).");
-      return;
+    if (!isValidCelebrityName(trimmedInput)) {
+      setError("Please enter a valid celebrity name.");
+      return; // This should exit before try block
     }
-
-    const sanitizedInput = trimmedInput;
 
     setIsLoading(true);
     setLoadingMessage("Querying Google Activity Database...");
 
     const messages = [
       "Querying Google Activity Database...",
-      `Filtering for ${sanitizedInput}...`,
+      `Filtering for ${trimmedInput}...`,
       "Gathering Google account bio...",
       "Gathering Results..."
     ];
@@ -87,18 +105,20 @@ function SearchFormComponent() {
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
       const startTime = Date.now();
-      const searchData = await fetchSearchHistory(sanitizedInput, captchaToken, controller.signal);
+      const searchData = await fetchSearchHistory(trimmedInput, captchaToken, controller.signal);
+      const bioData = await fetchBioData(trimmedInput);
       const endTime = Date.now();
       console.log("Search Response Time:", `${(endTime - startTime) / 1000}s`);
       clearTimeout(timeoutId);
       clearInterval(messageInterval);
 
-      if (searchData.searches) {
+      if (searchData && searchData.searches) {
         setResults(searchData.searches);
-        const bioData = await fetchBioData(sanitizedInput);
         setBio(bioData);
-      } else if (searchData.message) {
+      } else if (searchData && searchData.message) {
         setError(searchData.message);
+      } else {
+        setError("No search results found.");
       }
     } catch (err) {
       console.error("Fetch Error:", err.message);

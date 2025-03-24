@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import SearchFormComponent from "../components/SearchFormComponent";
 import { fetchSearchHistory, fetchBioData } from "../utils/api";
 
@@ -30,11 +30,11 @@ describe("SearchFormComponent", () => {
     const button = screen.getByText("Generate");
 
     await act(async () => {
-      fireEvent.change(input, { target: { value: "Tom Ignore" } });
+      fireEvent.change(input, { target: { value: "1234" } });
       fireEvent.click(button);
     });
 
-    const errorElement = await screen.findByText("Please enter a valid celebrity name (letters only, no suspicious text).", { timeout: 2000 });
+    const errorElement = await screen.findByText("Please enter a valid celebrity name.", { timeout: 2000 });
     expect(errorElement).toBeInTheDocument();
   });
 
@@ -65,6 +65,8 @@ describe("SearchFormComponent", () => {
 
   test("shows loading messages", async () => {
     fetchSearchHistory.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({ searches: [] }), 5000)));
+    fetchBioData.mockResolvedValue({ name: "Brad Pitt", age: 61, bio: "Test bio.", photo: "https://via.placeholder.com/150" });
+
     render(<SearchFormComponent />);
     const input = screen.getByPlaceholderText("Enter a celebrity name");
     const button = screen.getByText("Generate");
